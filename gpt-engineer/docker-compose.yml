@@ -9,31 +9,31 @@ services:
     image: ghcr.io/jinyoung/gpt-engineer:v2
     volumes:
       - ../order-inventory:/project
-  generate-product-management:
-    tty: true
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    image: ghcr.io/jinyoung/gpt-engineer:v2
-    volumes:
-      - ../product-management:/project
-  generate-user-management:
-    tty: true
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    image: ghcr.io/jinyoung/gpt-engineer:v2
-    volumes:
-      - ../user-management:/project
-  generate-supplier-management:
-    tty: true
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    image: ghcr.io/jinyoung/gpt-engineer:v2
-    volumes:
-      - ../supplier-management:/project
-  generate-system-settings:
-    tty: true
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    image: ghcr.io/jinyoung/gpt-engineer:v2
-    volumes:
-      - ../system-settings:/project
+  # generate-product-management:
+  #   tty: true
+  #   environment:
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #   image: ghcr.io/jinyoung/gpt-engineer:v2
+  #   volumes:
+  #     - ../product-management:/project
+  # generate-user-management:
+  #   tty: true
+  #   environment:
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #   image: ghcr.io/jinyoung/gpt-engineer:v2
+  #   volumes:
+  #     - ../user-management:/project
+  # generate-supplier-management:
+  #   tty: true
+  #   environment:
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #   image: ghcr.io/jinyoung/gpt-engineer:v2
+  #   volumes:
+  #     - ../supplier-management:/project
+  # generate-system-settings:
+  #   tty: true
+  #   environment:
+  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+  #   image: ghcr.io/jinyoung/gpt-engineer:v2
+  #   volumes:
+  #     - ../system-settings:/project
