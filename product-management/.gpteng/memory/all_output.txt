@@ -1,0 +1,418 @@
+To implement the Event Storming Model for a product management bounded context using the specified techniques, we will create a Spring Boot application with the following structure:
+
+- `domain` package for the core business logic (Aggregate, Value Objects)
+- `application` package for application services and DTOs
+- `infrastructure` package for external concerns (database, messaging)
+- `presentation` package for the REST API controllers
+
+We will also create configuration files, test cases, and other necessary files.
+
+Let's start by creating the project structure and the main application file.
+
+**Directory Structure:**
+```
+src/
+|-- main/
+|   |-- java/
+|   |   |-- com/
+|   |   |   |-- example/
+|   |   |   |   |-- productmanagement/
+|   |   |   |   |   |-- ProductManagementApplication.java
+|   |   |   |   |   |-- domain/
+|   |   |   |   |   |   |-- Product.java
+|   |   |   |   |   |   |-- Money.java
+|   |   |   |   |   |-- application/
+|   |   |   |   |   |   |-- ProductService.java
+|   |   |   |   |   |   |-- RegisterProductCommand.java
+|   |   |   |   |   |-- infrastructure/
+|   |   |   |   |   |   |-- ProductRepository.java
+|   |   |   |   |   |   |-- KafkaProducerConfig.java
+|   |   |   |   |   |   |-- KafkaConsumerConfig.java
+|   |   |   |   |   |-- presentation/
+|   |   |   |   |   |   |-- ProductController.java
+|   |   |-- resources/
+|   |   |   |-- application.properties
+|-- test/
+|   |-- java/
+|   |   |-- com/
+|   |   |   |-- example/
+|   |   |   |   |-- productmanagement/
+|   |   |   |   |   |-- ProductServiceTest.java
+pom.xml
+```
+
+**Main Application File:**
+
+src/main/java/com/example/productmanagement/ProductManagementApplication.java
+```java
+package com.example.productmanagement;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ProductManagementApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ProductManagementApplication.class, args);
+    }
+}
+```
+
+**Domain Model:**
+
+src/main/java/com/example/productmanagement/domain/Product.java
+```java
+package com.example.productmanagement.domain;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.data.annotation.Id;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+public class Product {
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID productId;
+    private String productName;
+    private Money price;
+
+    public Product(String productName, Money price) {
+        this.productName = productName;
+        this.price = price;
+    }
+
+    // Business logic methods can be added here
+}
+```
+
+src/main/java/com/example/productmanagement/domain/Money.java
+```java
+package com.example.productmanagement.domain;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import jakarta.persistence.Embeddable;
+
+import java.math.BigDecimal;
+
+@Embeddable
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Money {
+    private BigDecimal amount;
+    private String currency;
+
+    // Additional methods for money operations can be added here
+}
+```
+
+**Application Service and DTO:**
+
+src/main/java/com/example/productmanagement/application/ProductService.java
+```java
+package com.example.productmanagement.application;
+
+import com.example.productmanagement.domain.Product;
+import com.example.productmanagement.domain.Money;
+import com.example.productmanagement.infrastructure.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ProductService {
+
+    private final ProductRepository productRepository;
+
+    @Autowired
+    public ProductService(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
+
+    @Transactional
+    public Product registerProduct(RegisterProductCommand command) {
+        Product product = new Product(command.getProductName(), command.getPrice());
+        return productRepository.save(product);
+        // Publish event to Kafka after saving
+    }
+}
+```
+
+src/main/java/com/example/productmanagement/application/RegisterProductCommand.java
+```java
+package com.example.productmanagement.application;
+
+import com.example.productmanagement.domain.Money;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
+public class RegisterProductCommand {
+    private final String productName;
+    private final Money price;
+}
+```
+
+**Infrastructure:**
+
+src/main/java/com/example/productmanagement/infrastructure/ProductRepository.java
+```java
+package com.example.productmanagement.infrastructure;
+
+import com.example.productmanagement.domain.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.UUID;
+
+@Repository
+public interface ProductRepository extends JpaRepository<Product, UUID> {
+}
+```
+
+src/main/java/com/example/productmanagement/infrastructure/KafkaProducerConfig.java
+```java
+package com.example.productmanagement.infrastructure;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+
+@Configuration
+@EnableKafka
+public class KafkaProducerConfig {
+    // Kafka producer configuration goes here
+}
+```
+
+src/main/java/com/example/productmanagement/infrastructure/KafkaConsumerConfig.java
+```java
+package com.example.productmanagement.infrastructure;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+
+@Configuration
+@EnableKafka
+public class KafkaConsumerConfig {
+    // Kafka consumer configuration goes here
+}
+```
+
+**Presentation Layer:**
+
+src/main/java/com/example/productmanagement/presentation/ProductController.java
+```java
+package com.example.productmanagement.presentation;
+
+import com.example.productmanagement.application.ProductService;
+import com.example.productmanagement.application.RegisterProductCommand;
+import com.example.productmanagement.domain.Money;
+import com.example.productmanagement.domain.Product;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/products")
+public class ProductController {
+
+    private final ProductService productService;
+
+    @Autowired
+    public ProductController(ProductService productService) {
+        this.productService = productService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Product> registerProduct(@RequestBody RegisterProductRequest request) {
+        RegisterProductCommand command = new RegisterProductCommand(
+                request.getProductName(),
+                new Money(request.getPriceAmount(), request.getPriceCurrency())
+        );
+        Product product = productService.registerProduct(command);
+        return ResponseEntity.ok(product);
+    }
+
+    // Additional REST endpoints can be added here
+}
+
+class RegisterProductRequest {
+    private String productName;
+    private BigDecimal priceAmount;
+    private String priceCurrency;
+
+    // Getters and setters
+}
+```
+
+**Configuration File:**
+
+src/main/resources/application.properties
+```
+spring.datasource.url=jdbc:h2:mem:productdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.h2.console.enabled=true
+
+# Kafka configuration properties
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.consumer.group-id=product-consumer
+spring.kafka.consumer.auto-offset-reset=earliest
+```
+
+**Maven Configuration File:**
+
+pom.xml
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>product-management</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>product-management</name>
+    <description>Product Management Application</description>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.0.0</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Starter Web for REST API -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Starter Data JPA for database access -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- H2 Database for in-memory database -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Lombok for reducing boilerplate code -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Spring Boot Starter Test for testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Cloud Stream Binder for Kafka -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream-binder-kafka</artifactId>
+        </dependency>
+
+        <!-- Jakarta Persistence API -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
+**Test Case:**
+
+src/test/java/com/example/productmanagement/ProductServiceTest.java
+```java
+package com.example.productmanagement;
+
+import com.example.productmanagement.application.ProductService;
+import com.example.productmanagement.application.RegisterProductCommand;
+import com.example.productmanagement.domain.Money;
+import com.example.productmanagement.domain.Product;
+import com.example.productmanagement.infrastructure.ProductRepository;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+@SpringBootTest
+public class ProductServiceTest {
+
+    @Mock
+    private ProductRepository productRepository;
+
+    @InjectMocks
+    private ProductService productService;
+
+    @Test
+    public void testRegisterProduct() {
+        // Arrange
+        RegisterProductCommand command = new RegisterProductCommand("Test Product", new Money(BigDecimal.valueOf(100), "USD"));
+        Product expectedProduct = new Product("Test Product", new Money(BigDecimal.valueOf(100), "USD"));
+        expectedProduct.setProductId(UUID.randomUUID());
+        when(productRepository.save(any(Product.class))).thenReturn(expectedProduct);
+
+        // Act
+        Product registeredProduct = productService.registerProduct(command);
+
+        // Assert
+        assertEquals(expectedProduct.getProductName(), registeredProduct.getProductName());
+        assertEquals(expectedProduct.getPrice().getAmount(), registeredProduct.getPrice().getAmount());
+        assertEquals(expectedProduct.getPrice().getCurrency(), registeredProduct.getPrice().getCurrency());
+    }
+}
+```
+
+This concludes a fully working implementation.

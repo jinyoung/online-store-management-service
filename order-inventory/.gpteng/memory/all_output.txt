@@ -1,0 +1,693 @@
+Let's start by creating the `pom.xml` file for the Maven project configuration. This file will define the project dependencies and properties.
+
+pom.xml
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.example</groupId>
+    <artifactId>order-inventory-system</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Order Inventory System</name>
+    <description>System for managing orders and inventory</description>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.0.0</version>
+    </parent>
+
+    <properties>
+        <java.version>17</java.version>
+        <spring-cloud.version>2021.0.3</spring-cloud.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Starter Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Starter Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Starter Data Rest -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-rest</artifactId>
+        </dependency>
+
+        <!-- H2 Database -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Spring Cloud Stream -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream</artifactId>
+            <version>3.1.3</version>
+        </dependency>
+
+        <!-- Spring Cloud Stream Test Support -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-stream-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Spring Boot Starter Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Jakarta Persistence API -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.0.0</version>
+        </dependency>
+    </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+Next, we will create the directory structure and the core classes, functions, and methods necessary for the implementation. We will start with the entry point of the application.
+
+src/main/java/com/example/orderinventorysystem/OrderInventorySystemApplication.java
+```java
+package com.example.orderinventorysystem;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class OrderInventorySystemApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(OrderInventorySystemApplication.class, args);
+    }
+}
+```
+
+Now, let's define the domain model for the Order aggregate.
+
+src/main/java/com/example/orderinventorysystem/domain/order/Order.java
+```java
+package com.example.orderinventorysystem.domain.order;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
+import jakarta.persistence.*;
+
+import java.util.UUID;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@Table(name = "orders")
+public class Order {
+
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    private UUID orderId;
+
+    private UUID productId;
+    private Integer quantity;
+    private String status;
+
+    @Enumerated(EnumType.STRING)
+    private StatusType statusType;
+
+    public Order(UUID productId, Integer quantity) {
+        this.productId = productId;
+        this.quantity = quantity;
+        this.status = "CREATED";
+        this.statusType = StatusType.CREATED;
+    }
+}
+```
+
+src/main/java/com/example/orderinventorysystem/domain/order/StatusType.java
+```java
+package com.example.orderinventorysystem.domain.order;
+
+public enum StatusType {
+    CREATED, PROCESSING, SHIPPED, DELIVERED
+}
+```
+
+Next, we will define the repository interface for the Order aggregate.
+
+src/main/java/com/example/orderinventorysystem/domain/order/OrderRepository.java
+```java
+package com.example.orderinventorysystem.domain.order;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.UUID;
+
+@Repository
+public interface OrderRepository extends JpaRepository<Order, UUID> {
+}
+```
+
+Now, let's define the domain model for the Inventory aggregate.
+
+src/main/java/com/example/orderinventorysystem/domain/inventory/Inventory.java
+```java
+package com.example.orderinventorysystem.domain.inventory;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
+import jakarta.persistence.*;
+
+import java.util.UUID;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@Table(name = "inventory")
+public class Inventory {
+
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    private UUID productId;
+
+    private Integer quantity;
+
+    public Inventory(UUID productId, Integer quantity) {
+        this.productId = productId;
+        this.quantity = quantity;
+    }
+}
+```
+
+Next, we will define the repository interface for the Inventory aggregate.
+
+src/main/java/com/example/orderinventorysystem/domain/inventory/InventoryRepository.java
+```java
+package com.example.orderinventorysystem.domain.inventory;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.UUID;
+
+@Repository
+public interface InventoryRepository extends JpaRepository<Inventory, UUID> {
+}
+```
+
+Now, let's define the command and event classes for the Order aggregate.
+
+src/main/java/com/example/orderinventorysystem/application/order/command/PlaceOrderCommand.java
+```java
+package com.example.orderinventorysystem.application.order.command;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class PlaceOrderCommand {
+    UUID productId;
+    Integer quantity;
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/order/command/ProcessOrderCommand.java
+```java
+package com.example.orderinventorysystem.application.order.command;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class ProcessOrderCommand {
+    UUID orderId;
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/order/command/UpdateDeliveryStatusCommand.java
+```java
+package com.example.orderinventorysystem.application.order.command;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class UpdateDeliveryStatusCommand {
+    UUID orderId;
+    String status;
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/order/event/OrderPlacedEvent.java
+```java
+package com.example.orderinventorysystem.application.order.event;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class OrderPlacedEvent {
+    UUID orderId;
+    UUID productId;
+    Integer quantity;
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/order/event/OrderProcessedEvent.java
+```java
+package com.example.orderinventorysystem.application.order.event;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class OrderProcessedEvent {
+    UUID orderId;
+    String status;
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/order/event/DeliveryStatusUpdatedEvent.java
+```java
+package com.example.orderinventorysystem.application.order.event;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class DeliveryStatusUpdatedEvent {
+    UUID orderId;
+    String status;
+}
+```
+
+Next, we will define the command and event classes for the Inventory aggregate.
+
+src/main/java/com/example/orderinventorysystem/application/inventory/command/ManageInventoryCommand.java
+```java
+package com.example.orderinventorysystem.application.inventory.command;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class ManageInventoryCommand {
+    UUID productId;
+    Integer quantity;
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/inventory/event/InventoryManagedEvent.java
+```java
+package com.example.orderinventorysystem.application.inventory.event;
+
+import lombok.Value;
+
+import java.util.UUID;
+
+@Value
+public class InventoryManagedEvent {
+    UUID productId;
+    Integer quantity;
+}
+```
+
+Now, let's define the service classes that will handle the commands and produce the events.
+
+src/main/java/com/example/orderinventorysystem/application/order/OrderService.java
+```java
+package com.example.orderinventorysystem.application.order;
+
+import com.example.orderinventorysystem.application.order.command.PlaceOrderCommand;
+import com.example.orderinventorysystem.application.order.command.ProcessOrderCommand;
+import com.example.orderinventorysystem.application.order.command.UpdateDeliveryStatusCommand;
+import com.example.orderinventorysystem.application.order.event.OrderPlacedEvent;
+import com.example.orderinventorysystem.application.order.event.OrderProcessedEvent;
+import com.example.orderinventorysystem.application.order.event.DeliveryStatusUpdatedEvent;
+import com.example.orderinventorysystem.domain.order.Order;
+import com.example.orderinventorysystem.domain.order.OrderRepository;
+import com.example.orderinventorysystem.domain.order.StatusType;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderMessagingService orderMessagingService;
+
+    @Autowired
+    public OrderService(OrderRepository orderRepository, OrderMessagingService orderMessagingService) {
+        this.orderRepository = orderRepository;
+        this.orderMessagingService = orderMessagingService;
+    }
+
+    @Transactional
+    public UUID placeOrder(PlaceOrderCommand command) {
+        Order order = new Order(command.getProductId(), command.getQuantity());
+        order = orderRepository.save(order);
+        orderMessagingService.publishOrderPlacedEvent(new OrderPlacedEvent(order.getOrderId(), order.getProductId(), order.getQuantity()));
+        return order.getOrderId();
+    }
+
+    @Transactional
+    public void processOrder(ProcessOrderCommand command) {
+        Order order = orderRepository.findById(command.getOrderId()).orElseThrow();
+        order.setStatus("PROCESSING");
+        order.setStatusType(StatusType.PROCESSING);
+        orderRepository.save(order);
+        orderMessagingService.publishOrderProcessedEvent(new OrderProcessedEvent(order.getOrderId(), order.getStatus()));
+    }
+
+    @Transactional
+    public void updateDeliveryStatus(UpdateDeliveryStatusCommand command) {
+        Order order = orderRepository.findById(command.getOrderId()).orElseThrow();
+        order.setStatus(command.getStatus());
+        order.setStatusType(StatusType.valueOf(command.getStatus().toUpperCase()));
+        orderRepository.save(order);
+        orderMessagingService.publishDeliveryStatusUpdatedEvent(new DeliveryStatusUpdatedEvent(order.getOrderId(), order.getStatus()));
+    }
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/order/OrderMessagingService.java
+```java
+package com.example.orderinventorysystem.application.order;
+
+import com.example.orderinventorysystem.application.order.event.OrderPlacedEvent;
+import com.example.orderinventorysystem.application.order.event.OrderProcessedEvent;
+import com.example.orderinventorysystem.application.order.event.DeliveryStatusUpdatedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.stereotype.Service;
+
+@Service
+public class OrderMessagingService {
+
+    private final StreamBridge streamBridge;
+
+    @Autowired
+    public OrderMessagingService(StreamBridge streamBridge) {
+        this.streamBridge = streamBridge;
+    }
+
+    public void publishOrderPlacedEvent(OrderPlacedEvent event) {
+        streamBridge.send("orderPlaced-out-0", event);
+    }
+
+    public void publishOrderProcessedEvent(OrderProcessedEvent event) {
+        streamBridge.send("orderProcessed-out-0", event);
+    }
+
+    public void publishDeliveryStatusUpdatedEvent(DeliveryStatusUpdatedEvent event) {
+        streamBridge.send("deliveryStatusUpdated-out-0", event);
+    }
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/inventory/InventoryService.java
+```java
+package com.example.orderinventorysystem.application.inventory;
+
+import com.example.orderinventorysystem.application.inventory.command.ManageInventoryCommand;
+import com.example.orderinventorysystem.application.inventory.event.InventoryManagedEvent;
+import com.example.orderinventorysystem.domain.inventory.Inventory;
+import com.example.orderinventorysystem.domain.inventory.InventoryRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+@Service
+public class InventoryService {
+
+    private final InventoryRepository inventoryRepository;
+    private final InventoryMessagingService inventoryMessagingService;
+
+    @Autowired
+    public InventoryService(InventoryRepository inventoryRepository, InventoryMessagingService inventoryMessagingService) {
+        this.inventoryRepository = inventoryRepository;
+        this.inventoryMessagingService = inventoryMessagingService;
+    }
+
+    @Transactional
+    public void manageInventory(ManageInventoryCommand command) {
+        Inventory inventory = inventoryRepository.findById(command.getProductId()).orElse(new Inventory(command.getProductId(), 0));
+        inventory.setQuantity(inventory.getQuantity() + command.getQuantity());
+        inventoryRepository.save(inventory);
+        inventoryMessagingService.publishInventoryManagedEvent(new InventoryManagedEvent(inventory.getProductId(), inventory.getQuantity()));
+    }
+}
+```
+
+src/main/java/com/example/orderinventorysystem/application/inventory/InventoryMessagingService.java
+```java
+package com.example.orderinventorysystem.application.inventory;
+
+import com.example.orderinventorysystem.application.inventory.event.InventoryManagedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.stereotype.Service;
+
+@Service
+public class InventoryMessagingService {
+
+    private final StreamBridge streamBridge;
+
+    @Autowired
+    public InventoryMessagingService(StreamBridge streamBridge) {
+        this.streamBridge = streamBridge;
+    }
+
+    public void publishInventoryManagedEvent(InventoryManagedEvent event) {
+        streamBridge.send("inventoryManaged-out-0", event);
+    }
+}
+```
+
+Next, we will define the Kafka configuration for the application.
+
+src/main/java/com/example/orderinventorysystem/config/KafkaConfig.java
+```java
+package com.example.orderinventorysystem.config;
+
+import org.springframework.cloud.stream.annotation.EnableBinding;
+import org.springframework.cloud.stream.messaging.Processor;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@EnableBinding(Processor.class)
+public class KafkaConfig {
+}
+```
+
+Now, let's define the REST controllers for the Order and Inventory aggregates.
+
+src/main/java/com/example/orderinventorysystem/presentation/order/OrderController.java
+```java
+package com.example.orderinventorysystem.presentation.order;
+
+import com.example.orderinventorysystem.application.order.OrderService;
+import com.example.orderinventorysystem.application.order.command.PlaceOrderCommand;
+import com.example.orderinventorysystem.application.order.command.ProcessOrderCommand;
+import com.example.orderinventorysystem.application.order.command.UpdateDeliveryStatusCommand;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/orders")
+public class OrderController {
+
+    private final OrderService orderService;
+
+    @Autowired
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @PostMapping
+    public ResponseEntity<UUID> placeOrder(@RequestBody PlaceOrderCommand command) {
+        UUID orderId = orderService.placeOrder(command);
+        return ResponseEntity.ok(orderId);
+    }
+
+    @PostMapping("/{orderId}/process")
+    public ResponseEntity<Void> processOrder(@PathVariable UUID orderId) {
+        orderService.processOrder(new ProcessOrderCommand(orderId));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{orderId}/delivery-status")
+    public ResponseEntity<Void> updateDeliveryStatus(@PathVariable UUID orderId, @RequestBody String status) {
+        orderService.updateDeliveryStatus(new UpdateDeliveryStatusCommand(orderId, status));
+        return ResponseEntity.ok().build();
+    }
+}
+```
+
+src/main/java/com/example/orderinventorysystem/presentation/inventory/InventoryController.java
+```java
+package com.example.orderinventorysystem.presentation.inventory;
+
+import com.example.orderinventorysystem.application.inventory.InventoryService;
+import com.example.orderinventorysystem.application.inventory.command.ManageInventoryCommand;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/inventory")
+public class InventoryController {
+
+    private final InventoryService inventoryService;
+
+    @Autowired
+    public InventoryController(InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
+    }
+
+    @PostMapping
+    public ResponseEntity<Void> manageInventory(@RequestBody ManageInventoryCommand command) {
+        inventoryService.manageInventory(command);
+        return ResponseEntity.ok().build();
+    }
+}
+```
+
+Finally, let's define the test cases for the OrderService.
+
+src/test/java/com/example/orderinventorysystem/application/order/OrderServiceTest.java
+```java
+package com.example.orderinventorysystem.application.order;
+
+import com.example.orderinventorysystem.application.order.command.PlaceOrderCommand;
+import com.example.orderinventorysystem.application.order.command.ProcessOrderCommand;
+import com.example.orderinventorysystem.application.order.command.UpdateDeliveryStatusCommand;
+import com.example.orderinventorysystem.domain.order.Order;
+import com.example.orderinventorysystem.domain.order.OrderRepository;
+import com.example.orderinventorysystem.domain.order.StatusType;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@SpringBootTest
+class OrderServiceTest {
+
+    @Autowired
+    private OrderService orderService;
+
+    private OrderRepository orderRepository;
+    private OrderMessagingService orderMessagingService;
+    private StreamBridge streamBridge;
+
+    @BeforeEach
+    void setUp() {
+        orderRepository = mock(OrderRepository.class);
+        streamBridge = mock(StreamBridge.class);
+        orderMessagingService = new OrderMessagingService(streamBridge);
+        orderService = new OrderService(orderRepository, orderMessagingService);
+    }
+
+    @Test
+    void placeOrderShouldCreateNewOrderAndPublishEvent() {
+        UUID productId = UUID.randomUUID();
+        Integer quantity = 10;
+        PlaceOrderCommand command = new PlaceOrderCommand(productId, quantity);
+
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UUID orderId = orderService.placeOrder(command);
+
+        assertNotNull(orderId);
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).save(orderCaptor.capture());
+
+        Order savedOrder = orderCaptor.getValue();
+        assertEquals(productId, savedOrder.getProductId());
+        assertEquals(quantity, savedOrder.getQuantity());
+        assertEquals("CREATED", savedOrder.getStatus());
+
+        ArgumentCaptor<Message<?>> messageCaptor = ArgumentCaptor
