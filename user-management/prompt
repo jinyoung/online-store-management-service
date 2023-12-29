@@ -1,0 +1,19 @@
+Please implement for this Event Storming Model:
+
+{"_type":"BoundedContext","aggregates":[{"aggregateRoot":{"_type":"AggregateRoot","fieldDescriptors":[{"className":"UUID","name":"userId","displayName":"사용자 아이디","_type":"FieldDescriptor"}]},"commands":[{"_type":"Command","fieldDescriptors":[{"className":"UUID","name":"userId","_type":"FieldDescriptor"}],"name":"ManageUser","displayName":"사용자 관리하기"}],"events":[{"fieldDescriptors":[{"className":"UUID","name":"userId","_type":"FieldDescriptor"}],"name":"UserManaged","displayName":"사용자 관리됨","_type":"Event"}],"name":"User","displayName":"사용자","_type":"Aggregate"}],"name":"user-management","displayName":"사용자 관리","policies":[]}
+
+
+
+
+I want to utilize following techniques:
+
+- clean architecture
+- spring-boot3
+- spring-data-rest
+- JPA (must use package jakarta.persistence.* instead of javax.persistence.*)
+- H2 DB
+- Lombok
+- Kafka with spring-cloud-streams library
+- JUnit Test
+
+

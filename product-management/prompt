@@ -1,0 +1,19 @@
+Please implement for this Event Storming Model:
+
+{"_type":"BoundedContext","aggregates":[{"aggregateRoot":{"_type":"AggregateRoot","fieldDescriptors":[{"className":"UUID","name":"productId","displayName":"상품 아이디","_type":"FieldDescriptor"},{"className":"String","name":"productName","displayName":"상품 이름","_type":"FieldDescriptor"},{"className":"Money","name":"price","displayName":"가격","_type":"FieldDescriptor"}]},"commands":[{"_type":"Command","fieldDescriptors":[{"className":"String","name":"productName","_type":"FieldDescriptor"},{"className":"Money","name":"price","_type":"FieldDescriptor"}],"name":"RegisterProduct","displayName":"상품 등록하기"}],"events":[{"fieldDescriptors":[{"className":"UUID","name":"productId","_type":"FieldDescriptor"},{"className":"String","name":"productName","_type":"FieldDescriptor"},{"className":"Money","name":"price","_type":"FieldDescriptor"}],"name":"ProductRegistered","displayName":"상품 등록됨","_type":"Event"}],"name":"Product","displayName":"상품","_type":"Aggregate"}],"name":"product-management","displayName":"상품 관리","policies":[]}
+
+
+
+
+I want to utilize following techniques:
+
+- clean architecture
+- spring-boot3
+- spring-data-rest
+- JPA (must use package jakarta.persistence.* instead of javax.persistence.*)
+- H2 DB
+- Lombok
+- Kafka with spring-cloud-streams library
+- JUnit Test
+
+
